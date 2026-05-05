@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Digital Twin Life Simulator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#060a14;color:#e0e6f0;min-height:100vh}
+  .app{max-width:860px;margin:0 auto;padding:20px}
+  .topbar{background:#0d1226;border:0.5px solid #1e2a4a;border-radius:12px;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .topbar-title{font-size:16px;font-weight:500;color:#7eb8f7;letter-spacing:0.5px}
+  .topbar-sub{font-size:12px;color:#4a6080;margin-top:2px}
+  .twin-badge{background:#1a2540;border:0.5px solid #2a3a5c;border-radius:20px;padding:5px 16px;font-size:12px;color:#7eb8f7}
+  .nav{display:flex;gap:4px;background:#0d1226;border:0.5px solid #1e2a4a;border-radius:12px;padding:8px;margin-bottom:16px;flex-wrap:wrap}
+  .nav-btn{padding:8px 16px;font-size:13px;color:#4a6080;cursor:pointer;border:none;background:none;border-radius:8px;transition:all 0.2s}
+  .nav-btn.active{background:#1a2a4a;color:#7eb8f7}
+  .nav-btn:hover{color:#a0c4f7}
+  .section{display:none}
+  .section.active{display:block}
+  .card{background:#0d1226;border:0.5px solid #1e2a4a;border-radius:12px;padding:20px;margin-bottom:16px}
+  .card-title{font-size:11px;color:#4a6080;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .form-row.single{grid-template-columns:1fr}
+  label{font-size:12px;color:#4a6080;display:block;margin-bottom:6px}
+  input,select{width:100%;background:#0a0e1a;border:0.5px solid #1e2a4a;border-radius:8px;padding:10px 12px;font-size:13px;color:#e0e6f0;outline:none;transition:border 0.2s}
+  input:focus,select:focus{border-color:#7eb8f7}
+  select option{background:#0d1226}
+  .btn{padding:10px 22px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:0.5px solid #2a3a5c;background:#1a2540;color:#7eb8f7;transition:all 0.2s}
+  .btn:hover{background:#1e2e50;border-color:#7eb8f7}
+  .btn-primary{background:#1a3a6a;border-color:#7eb8f7}
+  .btn-sm{padding:5px 12px;font-size:12px}
+  .domain-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .domain-label{font-size:12px;color:#7eb8f7;width:90px;flex-shrink:0}
+  .bar-bg{flex:1;height:8px;background:#1a2540;border-radius:4px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease}
+  .domain-val{font-size:12px;color:#4a6080;width:50px;text-align:right;flex-shrink:0}
+  .habit-chip{background:#0a0e1a;border:0.5px solid #1e2a4a;border-radius:20px;padding:6px 14px;font-size:12px;color:#a0c4f7;display:inline-flex;align-items:center;gap:8px;margin:4px}
+  .rm{color:#c0394a;cursor:pointer;font-size:16px;line-height:1;font-weight:bold}
+  .status-badge{display:inline-block;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:500}
+  .status-elite{background:#0a2a1a;border:0.5px solid #1a6a3a;color:#4ad080}
+  .status-pos{background:#0a1a2a;border:0.5px solid #1a4a7a;color:#4a90d0}
+  .status-risk{background:#2a0a10;border:0.5px solid #6a1a2a;color:#f07080}
+  .rec-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:0.5px solid #1a2030;font-size:13px;color:#c0d0e0}
+  .rec-icon{width:22px;flex-shrink:0;text-align:center;font-size:15px}
+  .scenario-card{background:#0a0e1a;border:0.5px solid #1e2a4a;border-radius:10px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all 0.2s}
+  .scenario-card:hover,.scenario-card.selected{border-color:#7eb8f7;background:#0d1830}
+  .scenario-title{font-size:14px;font-weight:500;color:#a0c4f7;margin-bottom:4px}
+  .scenario-desc{font-size:12px;color:#4a6080;margin-bottom:8px}
+  .impact-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .pill{padding:3px 10px;border-radius:20px;font-size:11px}
+  .pill-pos{background:#0a2a1a;color:#4ad080;border:0.5px solid #1a5a2a}
+  .pill-neg{background:#2a0a10;color:#f07080;border:0.5px solid #6a1a2a}
+  .apply-row{display:flex;gap:12px;margin-top:16px;align-items:center}
+  .log-entry{font-size:12px;color:#4a7090;padding:6px 0;border-bottom:0.5px solid #1a2030}
+  .log-entry:last-child{border:none}
+  .metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+  .metric{background:#0a0e1a;border:0.5px solid #1e2a4a;border-radius:10px;padding:16px;text-align:center}
+  .metric-val{font-size:24px;font-weight:500;color:#7eb8f7}
+  .metric-label{font-size:11px;color:#4a6080;margin-top:4px}
+  .trend-up{color:#4ad080}
+  .trend-down{color:#f07080}
+  .alert{background:#0a1a2a;border:0.5px solid #1a3a5a;border-radius:10px;padding:14px 18px;font-size:13px;color:#7eb8f7;margin-bottom:16px}
+  .type-tabs{display:flex;gap:6px;margin-bottom:16px}
+  .type-tab{padding:7px 16px;border-radius:20px;font-size:12px;cursor:pointer;border:0.5px solid #1e2a4a;background:#0a0e1a;color:#4a6080;transition:all 0.2s}
+  .type-tab.active{background:#1a2a4a;color:#7eb8f7;border-color:#7eb8f7}
+  .outcome-row{font-size:12px;margin-bottom:6px;padding:6px 10px;border-radius:6px}
+  .outcome-best{background:#0a2a1a;color:#4ad080}
+  .outcome-worst{background:#2a0a10;color:#f07080}
+  @media(max-width:600px){
+    .form-row{grid-template-columns:1fr}
+    .metrics-grid{grid-template-columns:1fr 1fr}
+    .nav-btn{font-size:11px;padding:6px 10px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Digital Twin Life Simulator</div>
+      <div class="topbar-sub">Personal Decision Engine — OOP Course Project</div>
+    </div>
+    <div class="twin-badge" id="twin-badge">No twin created</div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="showTab('profile',this)">Profile</button>
+    <button class="nav-btn" onclick="showTab('habits',this)">Habits</button>
+    <button class="nav-btn" onclick="showTab('simulate',this)">Simulate</button>
+    <button class="nav-btn" onclick="showTab('dashboard',this)">Dashboard</button>
+    <button class="nav-btn" onclick="showTab('decisions',this)">Decisions</button>
+    <button class="nav-btn" onclick="showTab('report',this)">Report</button>
+  </div>
+
+  <!-- PROFILE -->
+  <div class="section active" id="sec-profile">
+    <div class="card">
+      <div class="card-title">Create your digital twin</div>
+      <div class="form-row">
+        <div><label>Your name</label><input id="p-name" placeholder="e.g. Alex" /></div>
+        <div><label>Age</label><input id="p-age" type="number" placeholder="e.g. 22" min="1" max="100" /></div>
+      </div>
+      <div class="form-row single">
+        <div><label>Primary life goal</label>
+          <select id="p-goal">
+            <option value="Career">Career Growth</option>
+            <option value="Fitness">Fitness</option>
+            <option value="Balance">Life Balance</option>
+            <option value="Wealth">Wealth Building</option>
+            <option value="Creativity">Creativity</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="createTwin()">Create Digital Twin</button>
+    </div>
+    <div class="card" id="twin-info" style="display:none">
+      <div class="card-title">Twin active</div>
+      <div style="font-size:13px;color:#a0c4f7" id="twin-info-text"></div>
+      <div style="margin-top:12px;font-size:12px;color:#4a6080">All 6 life domains start at 50/100. Add habits and run simulations to evolve your twin.</div>
+    </div>
+  </div>
+
+  <!-- HABITS -->
+  <div class="section" id="sec-habits">
+    <div class="alert" id="habits-alert">Create your digital twin first on the Profile tab.</div>
+    <div id="habits-form" style="display:none">
+      <div class="card">
+        <div class="card-title">Add a habit</div>
+        <div class="type-tabs">
+          <div class="type-tab active" onclick="setHabitType('physical',this)">Physical</div>
+          <div class="type-tab" onclick="setHabitType('mental',this)">Mental</div>
+          <div class="type-tab" onclick="setHabitType('social',this)">Social</div>
+        </div>
+        <div class="form-row">
+          <div><label>Habit name</label><input id="h-name" placeholder="e.g. Morning Run" /></div>
+          <div><label>Days per week (0–7)</label><input id="h-freq" type="number" min="0" max="7" placeholder="e.g. 5" /></div>
+        </div>
+        <div class="form-row">
+          <div><label>Positive habit?</label>
+            <select id="h-pos">
+              <option value="1">Yes — builds me up</option>
+              <option value="0">No — drags me down</option>
+            </select>
+          </div>
+          <div id="h-extra-wrap">
+            <label id="h-extra-label">Duration (min/session)</label>
+            <input id="h-extra" type="number" placeholder="e.g. 45" />
+          </div>
+        </div>
+        <div id="h-cat-wrap" style="display:none;margin-bottom:12px">
+          <label>Category</label>
+          <select id="h-cat">
+            <option value="learning">Learning</option>
+            <option value="stress">Stress Relief</option>
+            <option value="creativity">Creativity</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="addHabit()">Add Habit</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Active habits (<span id="habit-count">0</span>)</div>
+        <div id="habit-list"><div style="font-size:12px;color:#4a6080">No habits added yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIMULATE -->
+  <div class="section" id="sec-simulate">
+    <div class="alert" id="sim-alert">Create your digital twin first on the Profile tab.</div>
+    <div id="sim-form" style="display:none">
+      <div class="card">
+        <div class="card-title">Run time simulation</div>
+        <div class="form-row single">
+          <div><label>Days to simulate</label>
+            <select id="sim-days">
+              <option value="30">30 days (1 month)</option>
+              <option value="60">60 days (2 months)</option>
+              <option value="90" selected>90 days (3 months)</option>
+              <option value="180">180 days (6 months)</option>
+              <option value="365">365 days (1 year)</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="runSimulation()">Run Simulation</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Simulation log</div>
+        <div id="sim-log"><div style="font-size:12px;color:#4a6080">No simulations run yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="section" id="sec-dashboard">
+    <div class="alert" id="dash-alert">Create your digital twin and run a simulation first.</div>
+    <div id="dash-content" style="display:none">
+      <div class="metrics-grid">
+        <div class="metric"><div class="metric-val" id="d-wbi">50.0</div><div class="metric-label">Wellbeing Index</div></div>
+        <div class="metric"><div class="metric-val" id="d-days">0</div><div class="metric-label">Days Simulated</div></div>
+        <div class="metric"><div class="metric-val" id="d-habits">0</div><div class="metric-label">Active Habits</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Life domains</div>
+        <div id="domain-bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Event log</div>
+        <div id="decision-log-display"><div class="log-entry" style="color:#4a6080">No events recorded yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DECISIONS -->
+  <div class="section" id="sec-decisions">
+    <div class="alert" id="dec-alert">Create your digital twin first on the Profile tab.</div>
+    <div id="dec-content" style="display:none">
+      <div style="font-size:13px;color:#4a6080;margin-bottom:14px">Select a life decision to see its impact and apply it to your twin.</div>
+      <div id="scenario-list"></div>
+      <div class="apply-row" id="apply-row" style="display:none">
+        <button class="btn btn-primary" onclick="applyDecision()">Apply Decision</button>
+        <span style="font-size:12px;color:#4a6080" id="apply-label"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORT -->
+  <div class="section" id="sec-report">
+    <div class="alert" id="rep-alert">Create your digital twin and add habits first.</div>
+    <div id="rep-content" style="display:none">
+      <div class="card">
+        <div class="card-title">Consistency analysis</div>
+        <div class="metrics-grid">
+          <div class="metric"><div class="metric-val trend-up" id="r-pos">0.00</div><div class="metric-label">Positive power</div></div>
+          <div class="metric"><div class="metric-val trend-down" id="r-neg">0.00</div><div class="metric-label">Negative drag</div></div>
+          <div class="metric"><div class="metric-val" id="r-ratio">0.00</div><div class="metric-label">Balance ratio</div></div>
+        </div>
+        <div style="margin-bottom:16px"><span class="status-badge" id="r-status"></span></div>
+        <div class="card-title">Recommendations</div>
+        <div id="r-recs"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">6-month projection</div>
+        <div style="position:relative;width:100%;height:280px">
+          <canvas id="projChart" role="img" aria-label="6-month domain score projection bar chart"></canvas>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:#4a6080">
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#1a3a6a;border:1px solid #7eb8f7;display:inline-block"></span>Current</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#1a4a2a;border:1px solid #4ad080;display:inline-block"></span>Projected (6 months)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const DOMAIN_COLORS={Health:'#4ad080',Career:'#7eb8f7',Mental:'#c084f7',Social:'#f7a84a',Financial:'#4ad0d0',Creativity:'#f07080'};
+
+const SCENARIOS=[
+  {title:'Start a Side Business',desc:'Launch a freelance/startup alongside your current job.',
+   best:'Income +30%, skills grow rapidly, portfolio strengthens.',
+   worst:'Burnout risk, social life decreases, sleep suffers.',
+   impacts:{Career:15,Financial:12,Mental:-8,Social:-5}},
+  {title:'Switch to a Healthier Diet',desc:'Cut junk food, adopt balanced nutrition plan.',
+   best:'Energy +40%, mood improves, disease risk drops.',
+   worst:'Social eating becomes harder, cravings hit hard initially.',
+   impacts:{Health:18,Mental:8,Social:-3}},
+  {title:'Pursue Higher Education',desc:'Enroll in a masters program or certification course.',
+   best:'Career doors open, credibility rises, network expands.',
+   worst:'Financial stress, time constraints, social trade-off.',
+   impacts:{Career:20,Financial:-10,Mental:5,Social:-6}},
+  {title:'Adopt Daily Meditation',desc:'30 minutes of mindfulness every day.',
+   best:'Stress drops 40%, decision quality improves, focus sharpens.',
+   worst:'Requires schedule discipline; results take 8+ weeks.',
+   impacts:{Mental:20,Health:8,Creativity:10}},
+  {title:'Relocate to a New City',desc:'Move for career opportunity or lifestyle change.',
+   best:'Fresh start, career acceleration, new network.',
+   worst:'Homesickness, rebuild social circle from scratch.',
+   impacts:{Career:18,Financial:-15,Social:-12,Mental:5}}
+];
+
+let twin=null,habitType='physical',selectedScenario=null,projChart=null;
+
+function clamp(v){return Math.max(0,Math.min(100,v));}
+
+function createTwin(){
+  const name=document.getElementById('p-name').value.trim();
+  const age=parseInt(document.getElementById('p-age').value);
+  const goal=document.getElementById('p-goal').value;
+  if(!name||!age){alert('Please fill in name and age.');return;}
+  twin={name,age,goal,habits:[],simulationDays:0,log:[],
+    domains:{Health:50,Career:50,Mental:50,Social:50,Financial:50,Creativity:50}};
+  document.getElementById('twin-badge').textContent=name;
+  document.getElementById('twin-info').style.display='block';
+  document.getElementById('twin-info-text').textContent=name+', age '+age+' — Goal: '+goal+'.';
+  showUnlocked();
+}
+
+function showUnlocked(){
+  ['habits-alert','sim-alert','dash-alert','dec-alert','rep-alert'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.style.display='none';
+  });
+  ['habits-form','sim-form'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.style.display='block';
+  });
+  document.getElementById('dec-content').style.display='block';
+  renderScenarios();
+}
+
+function showTab(tab,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-'+tab).classList.add('active');
+  btn.classList.add('active');
+  if(tab==='dashboard')refreshDashboard();
+  if(tab==='report')refreshReport();
+}
+
+function setHabitType(type,el){
+  habitType=type;
+  document.querySelectorAll('.type-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const catWrap=document.getElementById('h-cat-wrap');
+  const extraWrap=document.getElementById('h-extra-wrap');
+  if(type==='mental'){catWrap.style.display='block';extraWrap.style.display='none';}
+  else{catWrap.style.display='none';extraWrap.style.display='block';
+    document.getElementById('h-extra-label').textContent=type==='physical'?'Duration (min/session)':'People involved';}
+}
+
+function impactScore(h){
+  if(h.type==='physical'){let b=(h.freq/7)*(h.dur/60)*10;return h.pos?b:-b;}
+  else if(h.type==='mental'){let b=(h.freq/7)*8;
+    if(h.cat==='learning')b*=1.4;if(h.cat==='stress')b*=1.2;if(h.cat==='creativity')b*=1.1;
+    return h.pos?b:-b;}
+  else{let b=(h.freq/7)*Math.log1p(h.people)*5;return h.pos?b:-b;}
+}
+
+function addHabit(){
+  if(!twin)return;
+  const name=document.getElementById('h-name').value.trim();
+  const freq=parseInt(document.getElementById('h-freq').value);
+  const pos=document.getElementById('h-pos').value==='1';
+  if(!name||isNaN(freq)||freq<0||freq>7){alert('Please enter a valid habit name and frequency (0-7).');return;}
+  let h={name,freq,pos,type:habitType};
+  if(habitType==='physical')h.dur=parseInt(document.getElementById('h-extra').value)||30;
+  else if(habitType==='mental')h.cat=document.getElementById('h-cat').value;
+  else h.people=parseInt(document.getElementById('h-extra').value)||5;
+  twin.habits.push(h);
+  document.getElementById('h-name').value='';
+  document.getElementById('h-extra').value='';
+  renderHabits();
+}
+
+function removeHabit(i){twin.habits.splice(i,1);renderHabits();}
+
+function renderHabits(){
+  const list=document.getElementById('habit-list');
+  document.getElementById('habit-count').textContent=twin.habits.length;
+  if(!twin.habits.length){list.innerHTML='<div style="font-size:12px;color:#4a6080">No habits added yet.</div>';return;}
+  list.innerHTML=twin.habits.map((h,i)=>{
+    const score=impactScore(h).toFixed(2);
+    const color=h.pos?'#4ad080':'#f07080';
+    const tag=h.type==='physical'?'PHY':h.type==='mental'?'MEN':'SOC';
+    return `<span class="habit-chip"><span style="color:#4a6080;font-size:10px">[${tag}]</span> ${h.name} <span style="color:${color}">${parseFloat(score)>0?'+':''}${score}</span> <span class="rm" onclick="removeHabit(${i})">&times;</span></span>`;
+  }).join('');
+}
+
+function computeAggregate(){return twin.habits.reduce((s,h)=>s+impactScore(h),0);}
+
+function runSimulation(){
+  if(!twin)return;
+  const days=parseInt(document.getElementById('sim-days').value);
+  twin.simulationDays+=days;
+  const aggregate=computeAggregate();
+  const dailyEffect=aggregate/100;
+  Object.keys(twin.domains).forEach(dn=>{
+    let delta=0;
+    twin.habits.forEach(h=>{
+      const impact=impactScore(h);
+      if(dn==='Health'&&h.type==='physical')delta+=impact*0.4;
+      if(dn==='Mental'&&h.type==='mental')delta+=impact*0.5;
+      if(dn==='Social'&&h.type==='social')delta+=impact*0.5;
+      if(dn==='Career'&&h.type==='mental')delta+=impact*0.3;
+      if(dn==='Financial')delta+=dailyEffect*0.5;
+      if(dn==='Creativity')delta+=dailyEffect*0.3;
+    });
+    twin.domains[dn]=clamp(twin.domains[dn]+delta*days/30);
+  });
+  const wbi=(Object.values(twin.domains).reduce((a,b)=>a+b,0)/6).toFixed(1);
+  twin.log.push('Simulated '+days+' days — WBI: '+wbi+'/100');
+  document.getElementById('sim-log').innerHTML=twin.log.map(l=>`<div class="log-entry">&gt; ${l}</div>`).join('');
+  refreshDashboard();
+}
+
+function refreshDashboard(){
+  if(!twin)return;
+  document.getElementById('dash-alert').style.display='none';
+  document.getElementById('dash-content').style.display='block';
+  const wbi=(Object.values(twin.domains).reduce((a,b)=>a+b,0)/6);
+  document.getElementById('d-wbi').textContent=wbi.toFixed(1);
+  document.getElementById('d-days').textContent=twin.simulationDays;
+  document.getElementById('d-habits').textContent=twin.habits.length;
+  document.getElementById('domain-bars').innerHTML=Object.entries(twin.domains).map(([name,val])=>{
+    const pct=Math.round(val);
+    return `<div class="domain-row"><div class="domain-label">${name}</div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${DOMAIN_COLORS[name]}"></div></div><div class="domain-val">${pct}/100</div></div>`;
+  }).join('');
+  const logEl=document.getElementById('decision-log-display');
+  logEl.innerHTML=twin.log.length?twin.log.map(l=>`<div class="log-entry">&gt; ${l}</div>`).join(''):'<div class="log-entry" style="color:#4a6080">No events recorded yet.</div>';
+}
+
+function renderScenarios(){
+  document.getElementById('scenario-list').innerHTML=SCENARIOS.map((s,i)=>{
+    const pills=Object.entries(s.impacts).map(([k,v])=>`<span class="pill ${v>0?'pill-pos':'pill-neg'}">${k} ${v>0?'+':''}${v}</span>`).join('');
+    return `<div class="scenario-card" id="sc-${i}" onclick="selectScenario(${i})">
+      <div class="scenario-title">${s.title}</div>
+      <div class="scenario-desc">${s.desc}</div>
+      <div class="outcome-row outcome-best">Best case: ${s.best}</div>
+      <div class="outcome-row outcome-worst" style="margin-top:4px">Risk: ${s.worst}</div>
+      <div class="impact-pills">${pills}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectScenario(i){
+  selectedScenario=i;
+  document.querySelectorAll('.scenario-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('sc-'+i).classList.add('selected');
+  document.getElementById('apply-row').style.display='flex';
+  document.getElementById('apply-label').textContent='Selected: '+SCENARIOS[i].title;
+}
+
+function applyDecision(){
+  if(selectedScenario===null||!twin)return;
+  const s=SCENARIOS[selectedScenario];
+  Object.entries(s.impacts).forEach(([k,v])=>{if(twin.domains[k]!==undefined)twin.domains[k]=clamp(twin.domains[k]+v);});
+  twin.log.push('Decision applied: "'+s.title+'"');
+  document.getElementById('apply-label').textContent='Applied! Check Dashboard for changes.';
+  refreshDashboard();
+}
+
+function refreshReport(){
+  if(!twin||!twin.habits.length){return;}
+  document.getElementById('rep-alert').style.display='none';
+  document.getElementById('rep-content').style.display='block';
+  let pos=0,neg=0;
+  twin.habits.forEach(h=>{const s=impactScore(h);if(s>0)pos+=s;else neg+=Math.abs(s);});
+  const ratio=neg>0?pos/neg:pos;
+  document.getElementById('r-pos').textContent=pos.toFixed(2);
+  document.getElementById('r-neg').textContent=neg.toFixed(2);
+  document.getElementById('r-ratio').textContent=ratio.toFixed(2);
+  const sb=document.getElementById('r-status');
+  if(ratio>2){sb.className='status-badge status-elite';sb.textContent='Elite consistency — you are on a winning path!';}
+  else if(ratio>1){sb.className='status-badge status-pos';sb.textContent='Positive — keep pushing. Growth is happening.';}
+  else{sb.className='status-badge status-risk';sb.textContent='At risk — negative habits outweigh positive.';}
+  let html='';
+  twin.habits.forEach(h=>{
+    if(!h.pos&&h.freq>3)html+=`<div class="rec-row"><div class="rec-icon" style="color:#f07080">!</div><div>Reduce "${h.name}" — high-frequency negative habit.</div></div>`;
+    if(h.pos&&h.freq<3)html+=`<div class="rec-row"><div class="rec-icon" style="color:#f7a84a">+</div><div>Increase "${h.name}" frequency for better results.</div></div>`;
+    if(h.pos&&h.freq>=5)html+=`<div class="rec-row"><div class="rec-icon" style="color:#4ad080">&#9733;</div><div>Strong habit: "${h.name}" — keep it consistent!</div></div>`;
+  });
+  if(!html)html='<div class="rec-row"><div class="rec-icon" style="color:#4ad080">&#10003;</div><div>No major issues. Your habits are well balanced.</div></div>';
+  document.getElementById('r-recs').innerHTML=html;
+  const aggregate=computeAggregate();
+  const growthRate=aggregate/200;
+  const labels=Object.keys(twin.domains);
+  const currentVals=labels.map(k=>Math.round(twin.domains[k]));
+  const projVals=labels.map(k=>Math.round(clamp(twin.domains[k]+growthRate*6*10)));
+  if(projChart)projChart.destroy();
+  projChart=new Chart(document.getElementById('projChart'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Current',data:currentVals,backgroundColor:'#1a3a6a',borderColor:'#7eb8f7',borderWidth:1},
+      {label:'Projected (6mo)',data:projVals,backgroundColor:'#1a4a2a',borderColor:'#4ad080',borderWidth:1}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{min:0,max:100,ticks:{color:'#4a6080',font:{size:11}},grid:{color:'#1a2a3a'}},
+        x:{ticks:{color:'#4a6080',font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
